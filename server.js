@@ -310,24 +310,32 @@ app.delete('/api/orders/:id', (req, res) => {
                     db.query(`UPDATE products SET stock = stock + ? WHERE id = ?`, [item.quantity, item.product_id], (stockErr) => {
                         if (stockErr && !hasError) {
                             hasError = true;
-                            return db.rollback(() => res.status(500).json({ success: false, message: '재고 원복 실패' }));
+                            return db.rollback(() => {
+                                res.status(500).json({ success: false, message: '재고 원복 실패' });
+                            });
                         }
                         processed++;
                         if (processed === items.length) {
                             db.query(`DELETE FROM order_items WHERE order_id = ?`, [orderId], (delItemErr) => {
                                 if (hasError) return;
                                 if (delItemErr) {
-                                    return db.rollback(() => res.status(500).json({ success: false, message: '주문 상세 삭제 실패' });
+                                    return db.rollback(() => {
+                                        res.status(500).json({ success: false, message: '주문 상세 삭제 실패' });
+                                    });
                                 }
 
                                 db.query(`DELETE FROM orders WHERE id = ?`, [orderId], (delOrderErr) => {
                                     if (delOrderErr) {
-                                        return db.rollback(() => res.status(500).json({ success: false, message: '주문 삭제 실패' });
+                                        return db.rollback(() => {
+                                            res.status(500).json({ success: false, message: '주문 삭제 실패' });
+                                        });
                                     }
 
                                     db.commit((commitErr) => {
                                         if (commitErr) {
-                                            return db.rollback(() => res.status(500).json({ success: false, message: '커밋 실패' });
+                                            return db.rollback(() => {
+                                                res.status(500).json({ success: false, message: '커밋 실패' });
+                                            });
                                         }
                                         io.emit('orderStatusChanged', { orderId, status: '삭제됨' });
                                         io.emit('productUpdated');
