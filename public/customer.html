@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장보기 좋은날</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* 모바일 브라우저 하단 네비게이션바 대응을 위해 100dvh 사용 */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
+
+        /* 사이드바 메뉴 스타일 */
+        .sidebar { width: 260px; background-color: #2c3e50; color: white; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: bold; background-color: #1a252f; text-align: center; border-bottom: 1px solid #34495e; }
+        .menu-list { list-style: none; padding: 20px 0; display: flex; flex-direction: column; }
+        .menu-item { padding: 15px 25px; cursor: pointer; transition: 0.2s; font-size: 1rem; }
+        .menu-item:hover, .menu-item.active { background-color: #34495e; border-left: 5px solid #3498db; }
+
+        /* 메인 콘텐츠 영역 */
+        .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; background-color: #f9f9f9; height: 100vh; height: 100dvh; overflow: hidden; }
+
+        /* 섹션 전환용 클래스 */
+        .page-section { display: none; flex-direction: column; flex: 1; height: 100%; overflow: hidden; }
+        .page-section.active { display: flex; }
+
+        /* 상품 목록 영역 내부 스크롤 처리 및 하단 여백 추가 */
+        #section-products { overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 20px); }
+        #section-myorders { overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 20px); }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #ddd; flex-shrink: 0; }
+        .header h1 { font-size: 1.5rem; color: #2c3e50; }
+        
+        .status-banner { background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; flex-shrink: 0; }
+
+        .user-info-card { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; display: flex; gap: 10px; flex-shrink: 0; }
+        .user-info-card input { flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; }
+
+        .product-card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; gap: 15px; align-items: center; }
+        .product-thumb { width: 80px; height: 80px; object-fit: cover; background: #fdfdfd; border: 1px solid #eee; border-radius: 6px; flex-shrink: 0; }
+        .product-info { flex: 1; min-width: 0; }
+        .product-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 4px; }
+        .product-price { color: #e74c3c; font-weight: bold; margin-bottom: 6px; }
+        .product-desc { font-size: 0.85rem; color: #666; margin-top: 4px; white-space: pre-line; word-break: break-all; }
+        
+        .quantity-control { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .quantity-control button { width: 30px; height: 30px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .quantity-control input { width: 50px; text-align: center; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+
+        /* 하단 결정하기 버튼 영역 고정 및 네비게이션바 간섭 방지 */
+        .fixed-bottom { position: sticky; bottom: 0; background: white; padding: 15px 20px; box-shadow: 0 -4px 10px rgba(0,0,0,0.08); border-radius: 10px 10px 0 0; margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .total-price { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
+        .btn-order { background: #2ecc71; color: white; border: none; padding: 12px 25px; font-size: 1rem; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .btn-order:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        /* 실시간 채팅방 스타일 영역 */
+        .chat-container { display: flex; flex-direction: column; flex: 1; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 10px; }
+        .chat-login-box { display: flex; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
+        .chat-login-box input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem; }
+        .chat-login-box button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        .chat-box { flex: 1; border: 1px solid #ddd; border-radius: 5px; padding: 12px; overflow-y: auto; background: #fafafa; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        .chat-input-area { display: flex; gap: 10px; flex-shrink: 0; }
+        .chat-input-area input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .chat-input-area button { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-all; }
+        .msg.customer { background: #e1f5fe; align-self: flex-end; }
+        .msg.admin { background: #e8f5e9; align-self: flex-start; }
+        .msg.system { background: #eee; align-self: center; font-size: 0.85rem; color: #666; text-align: center; }
+
+        /* 모바일 반응형 디자인 */
+        @media screen and (max-width: 768px) {
+            body { flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+            .sidebar { width: 100%; height: auto; flex-shrink: 0; }
+            .sidebar-header { display: none; }
+            .menu-list { flex-direction: row; padding: 0; }
+            .menu-item { flex: 1; text-align: center; padding: 12px 10px; font-size: 0.95rem; border-left: none; border-bottom: 3px solid transparent; }
+            .menu-item:hover, .menu-item.active { background-color: #34495e; border-left: none; border-bottom: 3px solid #3498db; }
+            
+            .main-content { padding: 10px; height: calc(100vh - 45px); height: calc(100dvh - 45px); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+            .header h1 { font-size: 1.2rem; }
+            .user-info-card { flex-direction: column; gap: 6px; padding: 10px; }
+            .product-card { padding: 10px; gap: 10px; }
+            .product-thumb { width: 60px; height: 60px; }
+            .product-name { font-size: 0.95rem; }
+            .fixed-bottom { padding: 10px 15px; margin-bottom: env(safe-area-inset-bottom, 0px); }
+            .chat-container { padding: 10px; margin-bottom: env(safe-area-inset-bottom, 0px); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 사이드바 메뉴 영역 -->
+    <div class="sidebar">
+        <div class="sidebar-header">장보기 좋은날</div>
+        <ul class="menu-list">
+            <li class="menu-item active" onclick="switchPage('products', this)">오늘의 상품</li>
+            <li class="menu-item" onclick="switchPage('myorders', this)">내 주문 내역</li>
+            <li class="menu-item" onclick="switchPage('chat', this)">실시간 채팅방</li>
+        </ul>
+    </div>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <div class="main-content">
+
+        <!-- 1. 오늘의 상품 섹션 -->
+        <div id="section-products" class="page-section active">
+            <div class="header">
+                <h1 id="storeTitle">장보기좋은날 (동탄점)</h1>
+            </div>
+
+            <div id="statusBanner" class="status-banner">현재 상품 준비 중이므로 수량 변경 및 주문 수정이 불가능합니다.</div>
+
+            <div class="user-info-card">
+                <input type="text" id="customerName" placeholder="이름 (예: 홍길동)">
+                <input type="text" id="customerPhone" placeholder="휴대폰 뒷번호 4자리 (예: 1234)">
+            </div>
+
+            <div id="productListContainer"></div>
+
+            <div class="fixed-bottom">
+                <div class="total-price">총 가격: <span id="totalSumPrice">0</span>원</div>
+                <button id="orderBtn" class="btn-order" onclick="submitOrder()">결정하기</button>
+            </div>
+        </div>
+
+        <!-- 2. 내 주문 내역 섹션 -->
+        <div id="section-myorders" class="page-section">
+            <div class="header">
+                <h1>📦 내 주문 내역 및 상태 확인</h1>
+            </div>
+            
+            <div class="user-info-card">
+                <input type="text" id="lookupName" placeholder="주문자 이름 입력">
+                <input type="text" id="lookupPhone" placeholder="휴대폰 번호 뒷번호 4자리">
+                <button onclick="fetchMyOrders()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">조회하기</button>
+            </div>
+
+            <div id="myOrdersContainer" style="overflow-y: auto; flex: 1;">
+                <div style="text-align: center; color: #777; padding: 40px;">이름과 휴대폰 번호를 입력 후 조회해주세요.</div>
+            </div>
+        </div>
+
+        <!-- 3. 실시간 채팅방 섹션 -->
+        <div id="section-chat" class="page-section">
+            <div class="header">
+                <h1>실시간 문의 채팅방</h1>
+            </div>
+            
+            <div class="chat-container">
+                <!-- 닉네임 입력 영역 -->
+                <div class="chat-login-box" id="chatLoginBox">
+                    <input type="text" id="chatNickname" placeholder="닉네임 입력 (예: 김철수)">
+                    <button onclick="joinChat()">입장하기</button>
+                </div>
+
+                <div class="chat-box" id="customer-chat-box">
+                    <div class="msg system">닉네임을 입력하고 채팅에 참여해주세요.</div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="customer-chat-input" placeholder="메시지를 입력하세요..." disabled onkeypress="if(event.key==='Enter') sendCustomerMessage()">
+                    <button id="chatSendBtn" onclick="sendCustomerMessage()" disabled>전송</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const socket = io();
+        let productsData = [];
+        let isEditable = true;
+        let myNickname = localStorage.getItem('chat_nickname') || '';
+
+        function switchPage(pageId, element) {
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById('section-' + pageId).classList.add('active');
+
+            if (element) {
+                document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+                element.classList.add('active');
+            }
+
+            if (pageId === 'chat') {
+                scrollToBottom();
+            }
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                const chatBox = document.getElementById('customer-chat-box');
+                if (chatBox) {
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            }, 50);
+        }
+
+        async function loadConsumerProducts() {
+            try {
+                const res = await fetch('/api/products?limit=100');
+                const data = await res.json();
+                
+                productsData = data.products || data;
+                
+                if (typeof data.isEditable !== 'undefined') {
+                    isEditable = data.isEditable;
+                }
+                
+                renderConsumerProducts();
+            } catch (err) {
+                console.error('상품 로딩 실패:', err);
+            }
+        }
+
+        function renderConsumerProducts() {
+            const container = document.getElementById('productListContainer');
+            container.innerHTML = '';
+
+            if (!productsData || productsData.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color:#777; padding:40px;">오늘 등록된 상품이 없습니다.</div>`;
+                return;
+            }
+
+            productsData.forEach(p => {
+                const imgTag = p.image_url ? `<img src="/uploads/${p.image_url}" class="product-thumb">` : `<div class="product-thumb" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#aaa;text-align:center;">이미지없음</div>`;
+                const isSoldOut = p.stock <= 0;
+                
+                const existingInput = document.getElementById(`qty-${p.id}`);
+                let currentQty = existingInput ? parseInt(existingInput.value) || 0 : 0;
+                if (currentQty > p.stock) currentQty = p.stock;
+
+                container.innerHTML += `
+                    <div class="product-card">
+                        ${imgTag}
+                        <div class="product-info">
+                            <div class="product-name">${p.name} ${isSoldOut ? '<span style="color:red; font-size:0.8rem;">(품절)</span>' : ''}</div>
+                            <div class="product-price">${Number(p.price).toLocaleString()}원</div>
+                            <div class="product-desc">${p.description || '상세 설명이 없습니다.'}</div>
+                            
+                            <div class="quantity-control">
+                                <button onclick="updateQty(${p.id}, -1)" ${isSoldOut || !isEditable ? 'disabled' : ''}>-</button>
+                                <input type="number" id="qty-${p.id}" value="${currentQty}" min="0" max="${p.stock}" onchange="calculateTotal()" ${isSoldOut || !isEditable ? 'disabled' : ''}>
+                                <button onclick="updateQty(${p.id}, 1)" ${isSoldOut || !isEditable ? 'disabled' : ''}>+</button>
+                                <span style="font-size: 0.8rem; color: #888; margin-left: 5px;">재고: ${p.stock}개</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            calculateTotal();
+            updateEditableState();
+        }
+
+        function updateEditableState() {
+            const banner = document.getElementById('statusBanner');
+            const orderBtn = document.getElementById('orderBtn');
+
+            if (!isEditable) {
+                banner.style.display = 'block';
+                orderBtn.disabled = true;
+            } else {
+                banner.style.display = 'none';
+                orderBtn.disabled = false;
+            }
+        }
+
+        function updateQty(id, delta) {
+            if (!isEditable) {
+                alert('상품 준비 중에는 수량을 변경할 수 없습니다.');
+                return;
+            }
+            const input = document.getElementById(`qty-${id}`);
+            if (!input) return;
+            
+            let val = parseInt(input.value || 0) + delta;
+            const max = parseInt(input.getAttribute('max')) || 0;
+            
+            if (val < 0) val = 0;
+            if (val > max) {
+                alert('재고 수량을 초과할 수 없습니다.');
+                val = max;
+            }
+            input.value = val;
+            calculateTotal();
+        }
+
+        function calculateTotal() {
+            let total = 0;
+            productsData.forEach(p => {
+                const input = document.getElementById(`qty-${p.id}`);
+                if (input) {
+                    const qty = parseInt(input.value) || 0;
+                    total += p.price * qty;
+                }
+            });
+            const totalElem = document.getElementById('totalSumPrice');
+            if (totalElem) {
+                totalElem.innerText = total.toLocaleString();
+            }
+        }
+
+        async function submitOrder() {
+            const name = document.getElementById('customerName').value.trim();
+            const phone = document.getElementById('customerPhone').value.trim();
+
+            if (!name || !phone) {
+                alert('이름과 휴대폰 번호 뒷번호를 입력해주세요.');
+                return;
+            }
+
+            const orderItems = [];
+            productsData.forEach(p => {
+                const input = document.getElementById(`qty-${p.id}`);
+                if (input) {
+                    const qty = parseInt(input.value) || 0;
+                    if (qty > 0) {
+                        orderItems.push({ productId: p.id, name: p.name, price: p.price, quantity: qty });
+                    }
+                }
+            });
+
+            if (orderItems.length === 0) {
+                alert('선택한 상품이 없습니다.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone, items: orderItems })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('주문이 확정되었습니다! 매장에서 확인 후 준비하겠습니다.');
+                    document.querySelectorAll('.quantity-control input').forEach(input => input.value = 0);
+                    calculateTotal();
+                    loadConsumerProducts();
+                    
+                    const lookupName = document.getElementById('lookupName');
+                    const lookupPhone = document.getElementById('lookupPhone');
+                    if (lookupName.value && lookupPhone.value) {
+                        fetchMyOrders();
+                    }
+                } else {
+                    alert(result.message || '주문 처리에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error('주문 전송 오류:', err);
+                alert('서버 통신 중 오류가 발생했습니다.');
+            }
+        }
+
+        // --- 내 주문 내역 조회 및 취소/삭제 함수 ---
+        async function fetchMyOrders() {
+            const name = document.getElementById('lookupName').value.trim();
+            const phone = document.getElementById('lookupPhone').value.trim();
+
+            if (!name || !phone) {
+                alert('이름과 휴대폰 번호 뒷번호를 입력해주세요.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/my-orders?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`);
+                const data = await res.json();
+                
+                const container = document.getElementById('myOrdersContainer');
+                container.innerHTML = '';
+
+                if (!data.success || !data.orders || data.orders.length === 0) {
+                    container.innerHTML = `<div style="text-align: center; color: #777; padding: 40px;">조회된 주문 내역이 없습니다.</div>`;
+                    return;
+                }
+
+                // 로컬 스토리지에서 사용자가 숨긴(삭제한) 주문 번호 목록 불러오기
+                let hiddenOrders = JSON.parse(localStorage.getItem('hidden_orders') || '[]');
+
+                let visibleOrderCount = 0;
+
+                data.orders.forEach(order => {
+                    // 사용자가 숨긴 주문이라면 화면에 렌더링하지 않음
+                    if (hiddenOrders.includes(order.id)) return;
+
+                    visibleOrderCount++;
+                    let itemsHtml = '';
+                    let totalPrice = 0;
+
+                    if (order.items) {
+                        order.items.forEach(item => {
+                            totalPrice += item.price * item.quantity;
+                            itemsHtml += `<div>- ${item.product_name || item.name} (${item.quantity}개): ${(item.price * item.quantity).toLocaleString()}원</div>`;
+                        });
+                    }
+
+                    // 주문 상태별 하단 안내 문구 또는 버튼 분기 처리
+                    let actionHtml = '';
+                    if (order.status === '상품대기') {
+                        actionHtml = `<button onclick="cancelOrder(${order.id})" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">주문 취소</button>`;
+                    } else if (order.status === '상품준비중') {
+                        actionHtml = `<span style="color: #e67e22; font-weight: bold;">상품 준비 중 (변경/취소 불가)</span>`;
+                    } else if (order.status === '처리완료') {
+                        actionHtml = `<span style="color: #27ae60; font-weight: bold;">픽업 완료된 상품입니다</span>`;
+                    } else {
+                        actionHtml = `<span style="color: #7f8c8d; font-weight: bold;">${order.status}</span>`;
+                    }
+
+                    // '처리완료' 상태일 때만 우측 상단에 X(삭제) 버튼 추가
+                    let deleteBtnHtml = '';
+                    if (order.status === '처리완료') {
+                        deleteBtnHtml = `<button onclick="hideMyOrder(${order.id})" style="background: none; border: none; font-size: 1.1rem; font-weight: bold; color: #999; cursor: pointer; padding: 0 5px;" title="목록에서 숨기기">×</button>`;
+                    }
+
+                    container.innerHTML += `
+                        <div id="order-card-${order.id}" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: bold;">
+                                <span>주문번호: #${order.id} [상태: <span style="color: #3498db;">${order.status}</span>]</span>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 0.85rem; color: #666;">${new Date(order.created_at).toLocaleString()}</span>
+                                    ${deleteBtnHtml}
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px; color: #555;">${itemsHtml}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 8px;">
+                                <span style="font-weight: bold; color: #e74c3c;">총 결제액: ${totalPrice.toLocaleString()}원</span>
+                                ${actionHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (visibleOrderCount === 0) {
+                    container.innerHTML = `<div style="text-align: center; color: #777; padding: 40px;">조회된 주문 내역이 없습니다.</div>`;
+                }
+
+            } catch (err) {
+                console.error('주문 조회 오류:', err);
+                alert('주문 조회 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 처리완료된 주문을 내 화면 리스트에서 숨기는 함수 (로컬스토리지 활용)
+        function hideMyOrder(orderId) {
+            if (!confirm('해당 주문 내역을 목록에서 숨기시겠습니까?')) return;
+
+            let hiddenOrders = JSON.parse(localStorage.getItem('hidden_orders') || '[]');
+            if (!hiddenOrders.includes(orderId)) {
+                hiddenOrders.push(orderId);
+                localStorage.setItem('hidden_orders', JSON.stringify(hiddenOrders));
+            }
+
+            // 화면에서 즉시 카드 제거
+            const cardElem = document.getElementById(`order-card-${orderId}`);
+            if (cardElem) {
+                cardElem.remove();
+            }
+
+            // 남은 주문이 없다면 안내 문구 출력
+            const container = document.getElementById('myOrdersContainer');
+            if (container && container.children.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #777; padding: 40px;">조회된 주문 내역이 없습니다.</div>`;
+            }
+        }
+
+        async function cancelOrder(orderId) {
+            if (!confirm('정말 이 주문을 취소하시겠습니까? (재고가 원복됩니다)')) return;
+
+            try {
+                const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('주문이 성공적으로 취소되었습니다.');
+                    fetchMyOrders(); 
+                } else {
+                    alert(result.message || '주문 취소에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error('주문 취소 통신 오류:', err);
+                alert('서버 통신 중 오류가 발생했습니다.');
+            }
+        }
+
+        // --- 실시간 채팅 연동 로직 ---
+        function initChatSession() {
+            if (myNickname) {
+                const nicknameInput = document.getElementById('chatNickname');
+                if (nicknameInput) {
+                    nicknameInput.value = myNickname;
+                    nicknameInput.disabled = true;
+                }
+                const loginBtn = document.querySelector('.chat-login-box button');
+                if (loginBtn) loginBtn.disabled = true;
+
+                const chatInput = document.getElementById('customer-chat-input');
+                const chatSendBtn = document.getElementById('chatSendBtn');
+                if (chatInput) chatInput.disabled = false;
+                if (chatSendBtn) chatSendBtn.disabled = false;
+
+                const chatBox = document.getElementById('customer-chat-box');
+                if (chatBox) {
+                    chatBox.innerHTML = `<div class="msg system">${myNickname}님으로 재접속 중입니다...</div>`;
+                }
+
+                socket.emit('joinChat', myNickname);
+            }
+        }
+
+        function joinChat() {
+            const nicknameInput = document.getElementById('chatNickname');
+            const nickname = nicknameInput.value.trim();
+
+            if (!nickname) {
+                alert('닉네임을 입력해주세요.');
+                return;
+            }
+
+            myNickname = nickname;
+            localStorage.setItem('chat_nickname', myNickname);
+
+            nicknameInput.disabled = true;
+            const loginBtn = document.querySelector('.chat-login-box button');
+            if (loginBtn) loginBtn.disabled = true;
+
+            const chatInput = document.getElementById('customer-chat-input');
+            const chatSendBtn = document.getElementById('chatSendBtn');
+            if (chatInput) chatInput.disabled = false;
+            if (chatSendBtn) chatSendBtn.disabled = false;
+
+            const chatBox = document.getElementById('customer-chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = `<div class="msg system">${myNickname}님으로 입장하셨습니다.</div>`;
+            }
+
+            socket.emit('joinChat', myNickname);
+            scrollToBottom();
+        }
+
+        function sendCustomerMessage() {
+            const input = document.getElementById('customer-chat-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+            if (!myNickname) {
+                alert('먼저 닉네임을 입력하고 입장해주세요.');
+                return;
+            }
+
+            socket.emit('sendMessage', {
+                role: 'customer',
+                text: message,
+                nickname: myNickname
+            });
+
+            input.value = '';
+        }
+
+        // --- Socket.io 실시간 상태 변경 및 상품 갱신 리스너 ---
+        
+        // 상품 정보가 변경되었을 때 (관리자가 추가/수정/삭제/재고변경했을 때)
+        socket.on('productUpdated', () => {
+            loadConsumerProducts();
+        });
+
+        // 관리자가 '상품 준비 중/수정 가능' 상태 토글을 바꿨을 때
+        socket.on('statusUpdated', (statusData) => {
+            if (typeof statusData === 'boolean') {
+                isEditable = statusData;
+            } else if (statusData && typeof statusData.isEditable !== 'undefined') {
+                isEditable = statusData.isEditable;
+            }
+            updateEditableState();
+            renderConsumerProducts();
+        });
+
+        // [추가된 부분] 관리자가 개별 또는 일괄로 주문 상태를 변경했을 때 실시간 반영
+        socket.on('orderStatusChanged', () => {
+            const lookupName = document.getElementById('lookupName');
+            const lookupPhone = document.getElementById('lookupPhone');
+            
+            // 사용자가 이미 이름을 입력하고 조회를 해둔 상태라면 자동으로 주문 목록을 재조회합니다.
+            if (lookupName && lookupPhone && lookupName.value.trim() && lookupPhone.value.trim()) {
+                fetchMyOrders();
+            }
+        });
+
+        // 서버로부터 기존 채팅 내역 수신
+        socket.on('loadHistory', (history) => {
+            const chatBox = document.getElementById('customer-chat-box');
+            if (!chatBox || !myNickname) return;
+
+            chatBox.innerHTML = `<div class="msg system">${myNickname}님, 환영합니다! 이전 대화 내용입니다.</div>`;
+
+            history.forEach(item => {
+                const msgDiv = document.createElement('div');
+                const senderName = item.sender || item.nickname || '알 수 없음';
+                const msgText = item.message || item.text || '';
+
+                if (item.role === 'admin') {
+                    msgDiv.className = 'msg admin';
+                    msgDiv.textContent = `관리자: ${msgText}`;
+                } else if (senderName === myNickname) {
+                    msgDiv.className = 'msg customer';
+                    msgDiv.textContent = `${senderName}: ${msgText}`;
+                } else {
+                    msgDiv.className = 'msg system';
+                    msgDiv.textContent = `${senderName}: ${msgText}`;
+                }
+                chatBox.appendChild(msgDiv);
+            });
+            scrollToBottom();
+        });
+
+        // 실시간 채팅 메시지 수신 (통합 처리)
+        function appendChatMessage(data) {
+            const chatBox = document.getElementById('customer-chat-box');
+            if (!chatBox) return;
+
+            if (data.type === 'system') {
+                const sysDiv = document.createElement('div');
+                sysDiv.className = 'msg system';
+                sysDiv.textContent = data.text;
+                chatBox.appendChild(sysDiv);
+                scrollToBottom();
+                return;
+            }
+
+            const msgDiv = document.createElement('div');
+            const senderName = data.sender || data.nickname || '';
+            const msgText = data.message || data.text || '';
+
+            if (data.role === 'admin') {
+                msgDiv.className = 'msg admin';
+                msgDiv.textContent = `관리자: ${msgText}`;
+            } else {
+                if (senderName === myNickname) {
+                    msgDiv.className = 'msg customer';
+                } else {
+                    msgDiv.className = 'msg system';
+                }
+                msgDiv.textContent = `${senderName}: ${msgText}`;
+            }
+
+            chatBox.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        socket.on('receiveMessage', appendChatMessage);
+        socket.on('chatMessage', appendChatMessage);
+
+        // 초기 실행
+        loadConsumerProducts();
+        initChatSession();
+    </script>
+</body>
+</html>
