@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +17,23 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
+
+// Cloudinary 설정 (Render 환경 변수 자동 연동)
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'shop_products',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
+    }
+});
+
+const upload = multer({ storage: storage });
 
 const db = mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
@@ -32,8 +51,6 @@ db.connect((err) => {
     }
     console.log('MySQL 데이터베이스 연결 성공!');
 });
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 app.get('/api/products', (req, res) => {
     const search = req.query.search || '';
@@ -62,7 +79,7 @@ app.post('/api/products', upload.single('image'), (req, res) => {
     let image_url = null;
     
     if (req.file) {
-        image_url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        image_url = req.file.path; // Cloudinary에 업로드된 이미지 URL
     }
 
     const query = 'INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)';
@@ -327,7 +344,7 @@ app.delete('/api/orders/:id', (req, res) => {
                                 db.query(`DELETE FROM orders WHERE id = ?`, [orderId], (delOrderErr) => {
                                     if (delOrderErr) {
                                         return db.rollback(() => {
-                                            res.status(500).json({ success: false, message: '주문 삭제 실패' });
+                                            res.status(500).json({ server: false, message: '주문 삭제 실패' });
                                         });
                                     }
 
@@ -340,7 +357,7 @@ app.delete('/api/orders/:id', (req, res) => {
                                         io.emit('orderStatusChanged', { orderId, status: '삭제됨' });
                                         io.emit('productUpdated');
 
-                                        res.json({ success: true, message: '주문이 취소되었습니다.' });
+                                        res.json({ success: the = true, message: '주문이 취소되었습니다.' });
                                     });
                                 });
                             });

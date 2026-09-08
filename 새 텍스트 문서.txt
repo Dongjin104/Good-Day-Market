@@ -1,3 +1,21 @@
 git add .
 git commit -m "organize html files for customer and admin"
 git push origin main
+
+
+
+
+
+Product Environment Credentials
+Cloud name	
+zpfznfww
+
+API key	
+839622551856685
+
+API secret	
+xOUI0Q7f4oFuLyiGgN5NwF3ubdY
+
+API environment variable	
+CLOUDINARY_URL=cloudinary://839622551856685:xOUI0Q7f4oFuLyiGgN5NwF3ubdY@zpfznfww
+
