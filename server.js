@@ -74,16 +74,19 @@ app.get('/api/products', (req, res) => {
     });
 });
 
+// 기존 상품 등록 라우트 부분을 아래와 같이 수정
 app.post('/api/products', upload.single('image'), (req, res) => {
-    const { name, price, stock } = req.body;
+    // description을 추가로 구조분해 할당합니다.
+    const { name, price, stock, description } = req.body;
     let image_url = null;
     
     if (req.file) {
-        image_url = req.file.path; // Cloudinary에 업로드된 이미지 URL
+        image_url = req.file.path; 
     }
 
-    const query = 'INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)';
-    db.query(query, [name, price, stock, image_url], (err) => {
+    // 쿼리문에 description 컬럼과 값 추가
+    const query = 'INSERT INTO products (name, price, stock, description, image_url) VALUES (?, ?, ?, ?, ?)';
+    db.query(query, [name, price, stock, description || '', image_url], (err) => {
         if (err) {
             console.error('상품 등록 실패:', err);
             return res.status(500).json({ success: false, message: '상품 등록 실패' });

@@ -101,6 +101,13 @@
                     <div class="form-group"><label>상품명:</label><input type="text" name="name" placeholder="예: 삼겹살 1kg" required></div>
                     <div class="form-group"><label>가격 (원):</label><input type="number" name="price" placeholder="예: 22000" required></div>
                     <div class="form-group"><label>재고 수량:</label><input type="number" name="stock" placeholder="예: 10" required></div>
+                    
+                    <!-- ★ 이 부분을 추가하세요 (상품 설명을 입력하는 칸) -->
+                    <div class="form-group">
+                        <label>상품 설명 (HTML 태그 사용 가능):</label>
+                        <textarea name="description" rows="5" placeholder="상품 상세 설명을 입력하세요 (예: <b>신선한</b> 지리산 사과입니다.)" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;"></textarea>
+                    </div>
+
                     <div class="form-group"><label>상품 이미지:</label><input type="file" name="image" accept="image/*"></div>
                     <button type="submit" class="btn-submit">상품 등록하기</button>
                 </form>
