@@ -69,7 +69,7 @@ app.post('/api/products', upload.single('image'), (req, res) => {
     db.query(query, [name, price, stock, image_url], (err) => {
         if (err) {
             console.error('상품 등록 실패:', err);
-            return res.status(500).send('상품 등록 실패');
+            return res.status(500).json({ success: false, message: '상품 등록 실패' });
         }
         
         io.emit('productUpdated');
