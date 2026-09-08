@@ -21,7 +21,7 @@ const db = mysql.createConnection({
     port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 28442,
     user: process.env.DB_USER || 'avnadmin',
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'market_db',
+    database: process.env.DB_NAME || 'defaultdb',
     ssl: { rejectUnauthorized: false }
 });
 
