@@ -33,14 +33,8 @@ db.connect((err) => {
     console.log('MySQL 데이터베이스 연결 성공!');
 });
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({ storage: storage });
+// Render 환경에서도 정상 동작하도록 메모리 스토리지(Base64 변환) 사용
+const upload = multer({ storage: multer.memoryStorage() });
 
 // [API] 상품 목록 조회
 app.get('/api/products', (req, res) => {
@@ -65,17 +59,25 @@ app.get('/api/products', (req, res) => {
     });
 });
 
-// [API] 상품 등록 (실시간 전파 추가)
+// [API] 상품 등록 (Base64 이미지 처리 및 실시간 전파)
 app.post('/api/products', upload.single('image'), (req, res) => {
     const { name, price, stock } = req.body;
-    const image_url = req.file ? req.file.filename : null;
+    let image_url = null;
+    
+    if (req.file) {
+        image_url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
     const query = 'INSERT INTO products (name, price, stock, image_url) VALUES (?, ?, ?, ?)';
     db.query(query, [name, price, stock, image_url], (err) => {
-        if (err) return res.status(500).send('상품 등록 실패');
+        if (err) {
+            console.error('상품 등록 실패:', err);
+            return res.status(500).send('상품 등록 실패');
+        }
         
         io.emit('productUpdated');
 
-        res.redirect('/index.html');
+        res.redirect('/admin.html');
     });
 });
 
@@ -219,7 +221,7 @@ app.put('/api/orders/:id/status', (req, res) => {
     });
 });
 
-// 4. 주문 상태 일괄 변경 API (프론트엔드 일괄 처리 연동을 위해 추가됨)
+// 4. 주문 상태 일괄 변경 API
 app.put('/api/orders/batch', (req, res) => {
     const { ids, status } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0 || !status) {
@@ -328,7 +330,7 @@ app.get('/', (req, res) => {
 
 // 관리자 화면 경로
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html')); // 관리자 파일 이름에 맞게 수정
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 server.listen(port, '0.0.0.0', () => {
