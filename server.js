@@ -18,10 +18,11 @@ app.use('/uploads', express.static('uploads'));
 
 const db = mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '1212qwqw',
-    database: process.env.DB_NAME || 'market_db'
+    database: process.env.DB_NAME || 'market_db',
+    ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : null
 });
 
 db.connect((err) => {
