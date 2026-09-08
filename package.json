@@ -18,5 +18,10 @@
   "bugs": {
     "url": "https://github.com/Dongjin104/Good-Day-Market/issues"
   },
-  "homepage": "https://github.com/Dongjin104/Good-Day-Market#readme"
+  "homepage": "https://github.com/Dongjin104/Good-Day-Market#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "mysql2": "^3.24.4",
+    "socket.io": "^4.8.3"
+  }
 }
