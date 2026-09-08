@@ -444,18 +444,18 @@
     const stockBadge = isLowStock ? '<span class="stock-badge">재고부족</span>' : '';
 
                     tbody.innerHTML += `
-                        <tr id="row-${p.id}" class="${stockClass}">
-                            <td>${imgTag}</td>
-                            <td><span id="name-text-${p.id}"><b>${p.name}</b></span></td>
-                            <td><span id="price-text-${p.id}">${Number(p.price).toLocaleString()}원</span></td>
-                            <td><span id="stock-text-${p.id}">${p.stock}개 ${stockBadge}</span></td>
-                            <td>${dateStr}</td>
-                            <td>
-                                <button class="btn-edit" onclick="enableEdit(${p.id}, '${p.name}', ${p.price}, ${p.stock}, '${(p.description || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">수정</button>
-                                <button class="btn-delete" onclick="deleteProduct(${p.id})">삭제</button>
-                            </td>
-                        </tr>
-                    `;
+    <tr id="row-${p.id}" class="${stockClass}" data-description="${(p.description || '').replace(/"/g, '&quot;')}">
+        <td>${imgTag}</td>
+        <td><span id="name-text-${p.id}"><b>${p.name}</b></span></td>
+        <td><span id="price-text-${p.id}">${Number(p.price).toLocaleString()}원</span></td>
+        <td><span id="stock-text-${p.id}">${p.stock}개 ${stockBadge}</span></td>
+        <td>${dateStr}</td>
+        <td>
+            <button class="btn-edit" onclick="enableEdit(${p.id}, '${p.name}', ${p.price}, ${p.stock})">수정</button>
+            <button class="btn-delete" onclick="deleteProduct(${p.id})">삭제</button>
+        </td>
+    </tr>
+`;
                 });
 
                 renderPagination(data.currentPage, data.totalPages);
@@ -506,27 +506,37 @@
         }
 
         function enableEdit(id, name, price, stock) {
-            document.getElementById(`name-text-${id}`).innerHTML = `<input type="text" id="edit-name-${id}" value="${name}" style="width:100%; padding:4px;">`;
-            document.getElementById(`price-text-${id}`).innerHTML = `<input type="number" id="edit-price-${id}" value="${price}" style="width:100%; padding:4px;">`;
-            document.getElementById(`stock-text-${id}`).innerHTML = `<input type="number" id="edit-stock-${id}" value="${stock}" style="width:100%; padding:4px;">`;
-            document.querySelector(`#row-${id} td:last-child`).innerHTML = `
-                <button class="btn-save" onclick="saveProduct(${id})">저장</button>
-                <button class="btn-delete" onclick="loadProducts(currentPage)">취소</button>
-            `;
-        }
+    // tr 태그에 숨겨둔 기존 설명을 가져옵니다.
+    const row = document.getElementById(`row-${id}`);
+    const currentDesc = row.getAttribute('data-description') || '';
+
+    // 상품명 입력창 밑에 설명 입력창(<textarea>)을 추가합니다.
+    document.getElementById(`name-text-${id}`).innerHTML = `
+        <input type="text" id="edit-name-${id}" value="${name}" style="width:100%; padding:4px; margin-bottom:4px;">
+        <textarea id="edit-desc-${id}" style="width:100%; padding:4px; font-size:0.85rem;" rows="2" placeholder="상품 설명 수정">${currentDesc}</textarea>
+    `;
+    document.getElementById(`price-text-${id}`).innerHTML = `<input type="number" id="edit-price-${id}" value="${price}" style="width:100%; padding:4px;">`;
+    document.getElementById(`stock-text-${id}`).innerHTML = `<input type="number" id="edit-stock-${id}" value="${stock}" style="width:100%; padding:4px;">`;
+    
+    document.querySelector(`#row-${id} td:last-child`).innerHTML = `
+        <button class="btn-save" onclick="saveProduct(${id})">저장</button>
+        <button class="btn-delete" onclick="loadProducts(currentPage)">취소</button>
+    `;
+}
 
         async function saveProduct(id) {
-            const name = document.getElementById(`edit-name-${id}`).value;
-            const price = document.getElementById(`edit-price-${id}`).value;
-            const stock = document.getElementById(`edit-stock-${id}`).value;
+    const name = document.getElementById(`edit-name-${id}`).value;
+    const price = document.getElementById(`edit-price-${id}`).value;
+    const stock = document.getElementById(`edit-stock-${id}`).value;
+    const description = document.getElementById(`edit-desc-${id}`).value; // ★ 이 줄을 추가해서 설명 값을 가져옵니다.
 
-            const res = await fetch(`/api/products/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, price, stock })
-            });
-            if ((await res.json()).success) loadProducts(currentPage);
-        }
+    const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price, stock, description }) // ★ 여기도 description을 추가합니다.
+    });
+    if ((await res.json()).success) loadProducts(currentPage);
+}
 
         // --- 주문 관리 기능 스크립트 ---
         let adminAllOrders = [];

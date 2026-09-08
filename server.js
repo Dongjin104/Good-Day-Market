@@ -106,8 +106,11 @@ app.delete('/api/products/:id', (req, res) => {
 });
 
 app.put('/api/products/:id', (req, res) => {
-    const { name, price, stock } = req.body;
-    db.query('UPDATE products SET name = ?, price = ?, stock = ? WHERE id = ?', [name, price, stock, req.params.id], (err) => {
+    // 1. description을 추가로 받아옵니다.
+    const { name, price, stock, description } = req.body;
+    
+    // 2. 쿼리문에 description = ? 를 추가하고 값도 함께 넣어줍니다.
+    db.query('UPDATE products SET name = ?, price = ?, stock = ?, description = ? WHERE id = ?', [name, price, stock, description || '', req.params.id], (err) => {
         if (err) return res.status(500).json({ success: false });
         io.emit('productUpdated');
         res.json({ success: true });
