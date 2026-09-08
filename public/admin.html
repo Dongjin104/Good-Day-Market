@@ -451,7 +451,7 @@
                             <td><span id="stock-text-${p.id}">${p.stock}개 ${stockBadge}</span></td>
                             <td>${dateStr}</td>
                             <td>
-                                <button class="btn-edit" onclick="enableEdit(${p.id}, '${p.name}', ${p.price}, ${p.stock})">수정</button>
+                                <button class="btn-edit" onclick="enableEdit(${p.id}, '${p.name}', ${p.price}, ${p.stock}, '${(p.description || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">수정</button>
                                 <button class="btn-delete" onclick="deleteProduct(${p.id})">삭제</button>
                             </td>
                         </tr>
