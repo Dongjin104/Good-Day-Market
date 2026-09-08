@@ -73,7 +73,7 @@ app.post('/api/products', upload.single('image'), (req, res) => {
         }
         
         io.emit('productUpdated');
-        res.redirect('/admin.html');
+        res.json({ success: true, message: '상품이 성공적으로 등록되었습니다.' });
     });
 });
 
