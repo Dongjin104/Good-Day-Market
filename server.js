@@ -322,7 +322,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'customer.html'));
 });
 
 server.listen(port, '0.0.0.0', () => {
