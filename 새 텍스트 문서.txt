@@ -1,0 +1,3 @@
+git add server.js
+git commit -m "change default route to customer html"
+git push origin main
