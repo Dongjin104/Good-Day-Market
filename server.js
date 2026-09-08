@@ -321,8 +321,14 @@ io.on('connection', (socket) => {
     });
 });
 
+// 소비자 화면 경로
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'customer.html'));
+});
+
+// 관리자 화면 경로
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html')); // 관리자 파일 이름에 맞게 수정
 });
 
 server.listen(port, '0.0.0.0', () => {
