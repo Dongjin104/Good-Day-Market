@@ -427,11 +427,14 @@
                 }
 
                 data.products.forEach(p => {
-                    const imgTag = p.image_url ? `<img src="/uploads/${p.image_url}" class="thumb">` : '<span>이미지 없음</span>';
-                    const dateStr = new Date(p.created_at).toLocaleString();
-                    const isLowStock = p.stock <= 5;
-                    const stockClass = isLowStock ? 'low-stock' : '';
-                    const stockBadge = isLowStock ? '<span class="stock-badge">재고부족</span>' : '';
+    // 수정된 부분: http로 시작하면 Cloudinary URL이므로 그대로 사용하고, 아니면 기존 로컬 경로 사용
+    const imgUrl = p.image_url ? (p.image_url.startsWith('http') ? p.image_url : `/uploads/${p.image_url}`) : '';
+    const imgTag = p.image_url ? `<img src="${imgUrl}" class="thumb">` : '<span>이미지 없음</span>';
+    
+    const dateStr = new Date(p.created_at).toLocaleString();
+    const isLowStock = p.stock <= 5;
+    const stockClass = isLowStock ? 'low-stock' : '';
+    const stockBadge = isLowStock ? '<span class="stock-badge">재고부족</span>' : '';
 
                     tbody.innerHTML += `
                         <tr id="row-${p.id}" class="${stockClass}">
